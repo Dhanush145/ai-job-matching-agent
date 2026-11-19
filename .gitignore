@@ -1,0 +1,27 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Data and personal information
+data/sample_resumes/*
+!data/sample_resumes/.gitkeep
+
+# Generated vector indexes
+vector_store/*
+
+# Frontend
+node_modules/
+frontend/dist/
+
+# OS
+.DS_Store
+Thumbs.db
