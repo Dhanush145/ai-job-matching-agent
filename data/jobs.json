@@ -1,0 +1,83 @@
+
+[
+  {
+    "job_id": "JOB001",
+    "title": "AI Engineer",
+    "company": "TechAI Labs",
+    "location": "Bengaluru",
+    "description": "Build LLM applications, AI agents and machine learning pipelines.",
+    "required_skills": ["Python", "LLM", "LangChain", "FastAPI", "Machine Learning"],
+    "experience_required": 1,
+    "employment_type": "Full-time"
+  },
+  {
+    "job_id": "JOB002",
+    "title": "Machine Learning Engineer",
+    "company": "DataVision",
+    "location": "Bengaluru",
+    "description": "Develop machine learning models and deploy predictive systems.",
+    "required_skills": ["Python", "Machine Learning", "PyTorch", "SQL"],
+    "experience_required": 1,
+    "employment_type": "Full-time"
+  },
+  {
+    "job_id": "JOB003",
+    "title": "NLP Engineer",
+    "company": "LanguageAI",
+    "location": "Hyderabad",
+    "description": "Develop NLP, text classification and transformer-based applications.",
+    "required_skills": ["Python", "NLP", "Transformers", "PyTorch"],
+    "experience_required": 2,
+    "employment_type": "Full-time"
+  },
+  {
+    "job_id": "JOB004",
+    "title": "Backend Developer",
+    "company": "CloudStack",
+    "location": "Bengaluru",
+    "description": "Build scalable backend services and REST APIs.",
+    "required_skills": ["Python", "FastAPI", "PostgreSQL", "Docker"],
+    "experience_required": 1,
+    "employment_type": "Full-time"
+  },
+  {
+    "job_id": "JOB005",
+    "title": "Data Scientist",
+    "company": "AnalyticsPro",
+    "location": "Pune",
+    "description": "Analyze business datasets and develop predictive models.",
+    "required_skills": ["Python", "SQL", "Statistics", "Machine Learning"],
+    "experience_required": 2,
+    "employment_type": "Full-time"
+  },
+  {
+    "job_id": "JOB006",
+    "title": "LLM Engineer",
+    "company": "GenAI Works",
+    "location": "Remote",
+    "description": "Build RAG systems, LLM agents and vector search applications.",
+    "required_skills": ["Python", "LangGraph", "FAISS", "Ollama", "RAG"],
+    "experience_required": 1,
+    "employment_type": "Full-time"
+  },
+  {
+    "job_id": "JOB007",
+    "title": "Data Analyst",
+    "company": "Insight Systems",
+    "location": "Bengaluru",
+    "description": "Analyze datasets and create dashboards and business reports.",
+    "required_skills": ["Python", "SQL", "Power BI", "Excel"],
+    "experience_required": 0,
+    "employment_type": "Full-time"
+  },
+  {
+    "job_id": "JOB008",
+    "title": "Python Developer",
+    "company": "SoftwareHub",
+    "location": "Chennai",
+    "description": "Develop Python applications, APIs and backend integrations.",
+    "required_skills": ["Python", "Django", "REST API", "Git"],
+    "experience_required": 1,
+    "employment_type": "Full-time"
+  }
+]
