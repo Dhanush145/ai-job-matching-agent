@@ -1,5 +1,8 @@
-# Python
+# Python environments
 venv/
+venv312/
+
+# Python cache
 __pycache__/
 *.pyc
 .pytest_cache/
@@ -7,21 +10,24 @@ __pycache__/
 # Environment variables
 .env
 
-# IDE
+# VS Code
 .vscode/
-.idea/
 
-# Data and personal information
+# Node
+node_modules/
+frontend/node_modules/
+frontend/.next/
+
+# Generated vector database
+vector_store/*
+
+# Local database
+data/*.db
+
+# Personal resumes
 data/sample_resumes/*
 !data/sample_resumes/.gitkeep
 
-# Generated vector indexes
-vector_store/*
-
-# Frontend
-node_modules/
-frontend/dist/
-
-# OS
-.DS_Store
-Thumbs.db
+# Build files
+dist/
+build/
