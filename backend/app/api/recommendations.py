@@ -13,8 +13,9 @@ from app.services.retrieval_service import (
     search_similar_jobs
 )
 
+from app.services.ranking_service import rank_jobs
 
-# Configure logging
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
@@ -25,7 +26,7 @@ router = APIRouter(
 
 def parse_json_list(value, field_name):
     """
-    Safely parse JSON database fields into Python lists.
+    Safely convert database JSON strings into Python lists.
     """
 
     if not value:
@@ -35,20 +36,21 @@ def parse_json_list(value, field_name):
         result = json.loads(value)
 
         if not isinstance(result, list):
-            raise ValueError(f"{field_name} must be a list.")
+            raise ValueError(
+                f"{field_name} must contain a JSON list."
+            )
 
         return result
 
     except (json.JSONDecodeError, ValueError) as exc:
         raise ValueError(
-            f"Invalid data stored in {field_name}: {exc}"
+            f"Invalid stored data in {field_name}: {exc}"
         ) from exc
 
 
 def format_education(education):
     """
-    Convert structured or legacy education records
-    into readable text for semantic search.
+    Convert education records into searchable text.
     """
 
     education_text = []
@@ -75,7 +77,6 @@ def format_education(education):
                 education_text.append(formatted)
 
         elif isinstance(item, str):
-
             education_text.append(item)
 
     return "; ".join(education_text)
@@ -86,28 +87,25 @@ def create_index(
     db: Session = Depends(get_db)
 ):
     """
-    Create or rebuild the FAISS job vector index.
+    Create or rebuild the FAISS job index.
     """
 
     try:
-        result = build_job_index(db)
-
-        return result
+        return build_job_index(db)
 
     except ValueError as exc:
-
         raise HTTPException(
             status_code=400,
             detail=str(exc)
-        )
+        ) from exc
 
     except Exception as exc:
-
         logger.exception("FAISS index creation failed")
 
         raise HTTPException(
             status_code=500,
-            detail="Failed to create job search index."
+            detail="Failed to create FAISS index. "
+                   "Check backend logs."
         ) from exc
 
 
@@ -124,17 +122,23 @@ def recommend_jobs(
     db: Session = Depends(get_db)
 ):
     """
-    Generate semantic job recommendations
-    for a candidate using FAISS.
+    Generate hybrid job recommendations using:
+
+    1. Semantic similarity
+    2. Skill matching
+    3. Experience compatibility
+    4. Location preferences
     """
 
-    # Step 1: Retrieve candidate
+    # ----------------------------------
+    # STEP 1: Retrieve candidate
+    # ----------------------------------
+
     candidate = db.query(Candidate).filter(
         Candidate.id == candidate_id
     ).first()
 
     if not candidate:
-
         raise HTTPException(
             status_code=404,
             detail="Candidate not found."
@@ -142,7 +146,10 @@ def recommend_jobs(
 
     try:
 
-        # Step 2: Extract candidate information
+        # ----------------------------------
+        # STEP 2: Extract candidate details
+        # ----------------------------------
+
         skills = parse_json_list(
             candidate.skills,
             "skills"
@@ -163,16 +170,23 @@ def recommend_jobs(
             "preferred_locations"
         )
 
-        # Step 3: Format education information
         education_text = format_education(
             education
         )
 
-        # Step 4: Construct candidate search query
-        candidate_query = f"""
-        Candidate Name: {candidate.name or ""}
+        candidate_experience = float(
+            candidate.experience_years or 0
+        )
 
-        Candidate Skills:
+        # ----------------------------------
+        # STEP 3: Create candidate query
+        # ----------------------------------
+
+        candidate_query = f"""
+        Candidate Name:
+        {candidate.name or ""}
+
+        Technical Skills:
         {", ".join(str(skill) for skill in skills)}
 
         Education:
@@ -184,18 +198,37 @@ def recommend_jobs(
         Preferred Locations:
         {", ".join(str(location) for location in preferred_locations)}
 
-        Experience:
-        {candidate.experience_years or 0} years
+        Professional Experience:
+        {candidate_experience} years
         """
 
-        # Step 5: Search FAISS
-        retrieved_jobs = search_similar_jobs(
-            query=candidate_query,
-            top_k=top_k
+        # ----------------------------------
+        # STEP 4: FAISS semantic retrieval
+        # ----------------------------------
+
+        retrieval_count = max(
+            top_k * 3,
+            20
         )
 
-        # Step 6: Retrieve complete job information
-        recommendations = []
+        retrieved_jobs = search_similar_jobs(
+            query=candidate_query,
+            top_k=retrieval_count
+        )
+
+        if not retrieved_jobs:
+            return {
+                "candidate_id": candidate.id,
+                "candidate_name": candidate.name,
+                "total_recommendations": 0,
+                "recommendations": []
+            }
+
+        # ----------------------------------
+        # STEP 5: Retrieve complete job data
+        # ----------------------------------
+
+        complete_jobs = []
 
         for result in retrieved_jobs:
 
@@ -206,12 +239,12 @@ def recommend_jobs(
             if not job:
                 continue
 
-            job_skills = parse_json_list(
+            required_skills = parse_json_list(
                 job.required_skills,
                 "required_skills"
             )
 
-            recommendations.append({
+            complete_jobs.append({
 
                 "job_id": job.job_id,
 
@@ -223,9 +256,11 @@ def recommend_jobs(
 
                 "description": job.description,
 
-                "required_skills": job_skills,
+                "required_skills": required_skills,
 
-                "experience_required": job.experience_required,
+                "experience_required": float(
+                    job.experience_required or 0
+                ),
 
                 "employment_type": job.employment_type,
 
@@ -233,16 +268,46 @@ def recommend_jobs(
 
             })
 
-        # Step 7: Return recommendations
+        # ----------------------------------
+        # STEP 6: Hybrid ranking
+        # ----------------------------------
+
+        ranked_jobs = rank_jobs(
+
+            candidate_skills=skills,
+
+            candidate_experience=candidate_experience,
+
+            candidate_locations=preferred_locations,
+
+            retrieved_jobs=complete_jobs,
+
+            top_k=top_k
+
+        )
+
+        # ----------------------------------
+        # STEP 7: Return final recommendations
+        # ----------------------------------
+
         return {
 
             "candidate_id": candidate.id,
 
             "candidate_name": candidate.name,
 
-            "total_recommendations": len(recommendations),
+            "ranking_method": "Hybrid Ranking",
 
-            "recommendations": recommendations
+            "ranking_weights": {
+                "semantic_similarity": 0.45,
+                "skill_matching": 0.25,
+                "experience_matching": 0.20,
+                "location_matching": 0.10
+            },
+
+            "total_recommendations": len(ranked_jobs),
+
+            "recommendations": ranked_jobs
 
         }
 
@@ -251,7 +316,9 @@ def recommend_jobs(
 
     except ValueError as exc:
 
-        logger.exception("Recommendation data validation failed")
+        logger.exception(
+            "Invalid candidate or job data"
+        )
 
         raise HTTPException(
             status_code=400,
@@ -261,12 +328,12 @@ def recommend_jobs(
     except Exception as exc:
 
         logger.exception(
-            "Job recommendation failed for candidate %s",
+            "Hybrid recommendation failed for candidate %s",
             candidate_id
         )
 
         raise HTTPException(
             status_code=500,
-            detail="Failed to generate job recommendations. "
-                   "Check backend logs for details."
+            detail="Failed to generate hybrid recommendations. "
+                   "Check backend logs."
         ) from exc
