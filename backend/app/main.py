@@ -9,6 +9,7 @@ from app.database import models
 from app.api.resume import router as resume_router
 from app.api.jobs import router as jobs_router
 
+from app.api.recommendations import router as recommendation_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -26,7 +27,7 @@ app = FastAPI(
 
 app.include_router(resume_router)
 app.include_router(jobs_router)
-
+app.include_router(recommendation_router)
 
 @app.get("/")
 def home():

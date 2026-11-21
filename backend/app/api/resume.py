@@ -50,7 +50,7 @@ async def upload_resume(
             name=profile.name,
             email=str(profile.email) if profile.email else None,
             phone=profile.phone,
-            education=json.dumps(profile.education),
+            education=json.dumps([item.model_dump() for item in profile.education]),
             skills=json.dumps(profile.skills),
             experience_years=profile.experience_years,
             preferred_roles=json.dumps(profile.preferred_roles),
