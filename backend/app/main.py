@@ -11,6 +11,8 @@ from app.api.jobs import router as jobs_router
 
 from app.api.recommendations import router as recommendation_router
 
+from app.api.agent import router as agent_router
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Create database tables
@@ -28,6 +30,7 @@ app = FastAPI(
 app.include_router(resume_router)
 app.include_router(jobs_router)
 app.include_router(recommendation_router)
+app.include_router(agent_router)
 
 @app.get("/")
 def home():
