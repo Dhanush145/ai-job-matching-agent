@@ -15,44 +15,61 @@ from app.services.reranker_service import rerank_jobs
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------
-# 1. Helper functions
-# ---------------------------------------------------------
+# =========================================================
+# 1. ROLE FILTERING
+# =========================================================
 
 TITLE_STOPWORDS = {
-    "senior",
-    "junior",
-    "lead",
-    "principal",
-    "staff",
-    "associate",
-    "entry",
-    "level",
-    "remote",
-    "hybrid",
-    "onsite",
+    "senior", "junior", "lead", "principal",
+    "staff", "associate", "entry", "level",
+    "remote", "hybrid", "onsite"
 }
 
 ROLE_INTENT_WORDS = {
-    "engineer",
-    "developer",
-    "scientist",
-    "analyst",
-    "researcher",
-    "architect",
-    "manager",
-    "designer",
-    "specialist",
-    "consultant",
-    "intern",
+    "engineer", "developer", "scientist",
+    "analyst", "researcher", "architect",
+    "manager", "designer", "specialist",
+    "consultant", "intern"
 }
 
 
-def parse_json_field(value, default=None):
-    """
-    Safely parse JSON fields stored in SQLite.
-    """
+def normalize_title_tokens(title: str) -> set:
+    tokens = set(
+        re.findall(r"[a-z0-9]+", (title or "").lower())
+    )
+    return tokens - TITLE_STOPWORDS
 
+
+def filter_requested_roles(jobs: list, query: str) -> list:
+    query_tokens = set(
+        re.findall(r"[a-z0-9]+", (query or "").lower())
+    )
+
+    has_role_intent = bool(
+        query_tokens.intersection(ROLE_INTENT_WORDS)
+    )
+
+    if not has_role_intent:
+        return jobs
+
+    filtered_jobs = []
+
+    for job in jobs:
+        title_tokens = normalize_title_tokens(
+            job.get("title", "")
+        )
+
+        if title_tokens and title_tokens.issubset(query_tokens):
+            filtered_jobs.append(job)
+
+    return filtered_jobs
+
+
+# =========================================================
+# 2. JSON AND JOB HELPERS
+# =========================================================
+
+def parse_json_field(value, default=None):
     if default is None:
         default = []
 
@@ -68,53 +85,324 @@ def parse_json_field(value, default=None):
         return default
 
 
-def normalize_title_tokens(title: str) -> set:
-    """
-    Convert a job title into normalized tokens.
-    """
+def create_candidate_query(
+    candidate_skills: list,
+    education_text: str,
+    candidate_experience: float,
+    preferred_roles: list,
+    preferred_locations: list,
+) -> str:
 
-    tokens = set(re.findall(r"[a-z0-9]+", (title or "").lower()))
-
-    return tokens - TITLE_STOPWORDS
-
-
-def filter_requested_roles(jobs: list, query: str) -> list:
-    """
-    Filter jobs according to explicitly requested job roles.
-
-    Example:
-        Query: "Find AI Engineer jobs"
-
-        Only jobs whose titles match the requested role
-        will be returned.
+    return f"""
+    Candidate skills: {", ".join(candidate_skills)}
+    Education: {education_text}
+    Experience: {candidate_experience} years
+    Preferred roles: {", ".join(preferred_roles)}
+    Preferred locations: {", ".join(preferred_locations)}
     """
 
-    query_tokens = set(
-        re.findall(r"[a-z0-9]+", (query or "").lower())
+
+def create_job_record(job, semantic_score: float = 0) -> dict:
+
+    return {
+        "job_id": job.job_id,
+        "title": job.title,
+        "company": job.company,
+        "location": job.location,
+        "description": job.description,
+        "required_skills": parse_json_field(
+            job.required_skills
+        ),
+        "experience_required": job.experience_required or 0,
+        "employment_type": job.employment_type,
+        "salary_min_lpa": job.salary_min_lpa,
+        "salary_max_lpa": job.salary_max_lpa,
+        "similarity_score": semantic_score,
+    }
+
+
+# =========================================================
+# 3. EXTRACT FILTERS FROM NATURAL LANGUAGE
+# =========================================================
+
+def extract_search_filters(query: str) -> dict:
+    """
+    Extract structured job filters from a natural-language query.
+
+    Supported:
+        Salary range in LPA
+        Minimum / maximum salary
+        Minimum / maximum experience
+        Experience ranges
+        Location
+        Remote / hybrid / onsite
+        Employment type
+    """
+
+    text = query.lower()
+
+    filters = {
+        "location": None,
+        "min_experience": None,
+        "max_experience": None,
+        "employment_type": None,
+        "min_salary_lpa": None,
+        "max_salary_lpa": None,
+    }
+
+    # -----------------------------------------------------
+    # SALARY RANGE
+    # Example: salary between 8 and 15 LPA
+    # -----------------------------------------------------
+
+    salary_range = re.search(
+        r"(?:between|from)\s*(\d+(?:\.\d+)?)"
+        r"\s*(?:and|to|-)\s*(\d+(?:\.\d+)?)"
+        r"\s*(?:lpa|lakhs?|lakhs?\s+per\s+annum)",
+        text,
     )
 
-    has_role_intent = bool(query_tokens.intersection(ROLE_INTENT_WORDS))
+    if salary_range:
+        filters["min_salary_lpa"] = float(
+            salary_range.group(1)
+        )
+        filters["max_salary_lpa"] = float(
+            salary_range.group(2)
+        )
 
-    # If the user did not specify a recognizable job role,
-    # do not restrict the results by title.
-    if not has_role_intent:
-        return jobs
+    else:
+        # Minimum salary
+        min_salary = re.search(
+            r"(?:at least|minimum|min|above|over|more than|>=)"
+            r"\s*(\d+(?:\.\d+)?)\s*"
+            r"(?:lpa|lakhs?|lakhs?\s+per\s+annum)",
+            text,
+        )
+
+        if min_salary:
+            filters["min_salary_lpa"] = float(
+                min_salary.group(1)
+            )
+
+        # Maximum salary
+        max_salary = re.search(
+            r"(?:at most|maximum|max|up to|below|under|less than|<=)"
+            r"\s*(\d+(?:\.\d+)?)\s*"
+            r"(?:lpa|lakhs?|lakhs?\s+per\s+annum)",
+            text,
+        )
+
+        if max_salary:
+            filters["max_salary_lpa"] = float(
+                max_salary.group(1)
+            )
+
+    # -----------------------------------------------------
+    # EXPERIENCE RANGE
+    # Example: 0-2 years of experience
+    # -----------------------------------------------------
+
+    experience_range = re.search(
+        r"(\d+(?:\.\d+)?)\s*(?:-|to|and)\s*"
+        r"(\d+(?:\.\d+)?)\s*(?:years?|yrs?)",
+        text,
+    )
+
+    if experience_range:
+        filters["min_experience"] = float(
+            experience_range.group(1)
+        )
+        filters["max_experience"] = float(
+            experience_range.group(2)
+        )
+
+    else:
+        min_experience = re.search(
+            r"(?:at least|minimum|min|above|over|more than)"
+            r"\s*(\d+(?:\.\d+)?)\s*(?:years?|yrs?)",
+            text,
+        )
+
+        if min_experience:
+            filters["min_experience"] = float(
+                min_experience.group(1)
+            )
+
+        max_experience = re.search(
+            r"(?:at most|maximum|max|up to|below|under|less than)"
+            r"\s*(\d+(?:\.\d+)?)\s*(?:years?|yrs?)",
+            text,
+        )
+
+        if max_experience:
+            filters["max_experience"] = float(
+                max_experience.group(1)
+            )
+
+    # -----------------------------------------------------
+    # LOCATION
+    # -----------------------------------------------------
+
+    if re.search(r"\bremote\b", text):
+        filters["location"] = "Remote"
+
+    elif re.search(r"\bhybrid\b", text):
+        filters["location"] = "Hybrid"
+
+    elif re.search(r"\b(onsite|on-site|office-based)\b", text):
+        filters["location"] = "Onsite"
+
+    else:
+        location_match = re.search(
+            r"\b(?:in|at|near)\s+"
+            r"([a-z][a-z\s-]*?)"
+            r"(?=\s+(?:with|for|paying|salary|experience|"
+            r"requiring|that|under|over|minimum|maximum|"
+            r"at least|at most|full-time|part-time|contract|"
+            r"internship)\b|[,!?]|$)",
+            text,
+        )
+
+        if location_match:
+            filters["location"] = (
+                location_match.group(1).strip()
+            )
+
+    # -----------------------------------------------------
+    # EMPLOYMENT TYPE
+    # -----------------------------------------------------
+
+    employment_types = {
+        "full-time": ["full-time", "full time", "permanent"],
+        "part-time": ["part-time", "part time"],
+        "contract": ["contract", "contractual"],
+        "internship": ["internship", "intern"],
+        "freelance": ["freelance"],
+    }
+
+    for employment_type, keywords in employment_types.items():
+        if any(keyword in text for keyword in keywords):
+            filters["employment_type"] = employment_type
+            break
+
+    return filters
+
+
+# =========================================================
+# 4. APPLY FILTERS TO RETRIEVED JOBS
+# =========================================================
+
+def apply_search_filters(
+    jobs: list,
+    filters: dict,
+) -> list:
+    """
+    Apply structured filters to retrieved job dictionaries.
+
+    Salary filters use overlapping salary ranges.
+    Jobs without salary data are excluded when a
+    salary filter is explicitly requested.
+    """
 
     filtered_jobs = []
 
     for job in jobs:
-        title_tokens = normalize_title_tokens(job.get("title", ""))
 
-        if title_tokens and title_tokens.issubset(query_tokens):
-            filtered_jobs.append(job)
+        # -------------------------------------------------
+        # LOCATION FILTER
+        # -------------------------------------------------
+
+        requested_location = filters["location"]
+
+        if requested_location:
+            job_location = (
+                job.get("location") or ""
+            ).lower()
+
+            if requested_location.lower() not in job_location:
+                continue
+
+        # -------------------------------------------------
+        # EXPERIENCE FILTER
+        # -------------------------------------------------
+
+        experience = float(
+            job.get("experience_required") or 0
+        )
+
+        min_exp = filters["min_experience"]
+        max_exp = filters["max_experience"]
+
+        if min_exp is not None and experience < min_exp:
+            continue
+
+        if max_exp is not None and experience > max_exp:
+            continue
+
+        # -------------------------------------------------
+        # EMPLOYMENT TYPE FILTER
+        # -------------------------------------------------
+
+        requested_type = filters["employment_type"]
+
+        if requested_type:
+            actual_type = (
+                job.get("employment_type") or ""
+            ).lower().replace(" ", "-")
+
+            if actual_type != requested_type:
+                continue
+
+        # -------------------------------------------------
+        # SALARY FILTER
+        # -------------------------------------------------
+
+        min_salary = filters["min_salary_lpa"]
+        max_salary = filters["max_salary_lpa"]
+
+        job_min_salary = job.get("salary_min_lpa")
+        job_max_salary = job.get("salary_max_lpa")
+
+        salary_filter_requested = (
+            min_salary is not None
+            or max_salary is not None
+        )
+
+        if salary_filter_requested:
+
+            # Do not assume salary for jobs without salary data.
+            if (
+                job_min_salary is None
+                or job_max_salary is None
+            ):
+                continue
+
+            # Requested minimum salary:
+            # Job maximum must reach the requested minimum.
+            if (
+                min_salary is not None
+                and job_max_salary < min_salary
+            ):
+                continue
+
+            # Requested maximum salary:
+            # Job minimum must not exceed the requested maximum.
+            if (
+                max_salary is not None
+                and job_min_salary > max_salary
+            ):
+                continue
+
+        filtered_jobs.append(job)
 
     return filtered_jobs
 
 
+# =========================================================
+# 5. SORT FINAL RESULTS
+# =========================================================
+
 def sort_and_assign_ranks(jobs: list) -> list:
-    """
-    Sort jobs by final hybrid match score and assign ranks.
-    """
 
     sorted_jobs = sorted(
         jobs,
@@ -131,63 +419,11 @@ def sort_and_assign_ranks(jobs: list) -> list:
     return sorted_jobs
 
 
-def create_candidate_query(
-    candidate_skills: list,
-    education_text: str,
-    candidate_experience: float,
-    preferred_roles: list,
-    preferred_locations: list,
-) -> str:
-    """
-    Create a consistent candidate representation for
-    profile-based semantic retrieval.
-    """
-
-    return f"""
-    Candidate skills: {", ".join(candidate_skills)}
-    Education: {education_text}
-    Experience: {candidate_experience} years
-    Preferred roles: {", ".join(preferred_roles)}
-    Preferred locations: {", ".join(preferred_locations)}
-    """
-
-
-def create_job_record(job, semantic_score: float = 0) -> dict:
-    """
-    Convert a SQLAlchemy Job object into a dictionary
-    compatible with the ranking service.
-    """
-
-    return {
-        "job_id": job.job_id,
-        "title": job.title,
-        "company": job.company,
-        "location": job.location,
-        "description": job.description,
-        "required_skills": parse_json_field(job.required_skills),
-        "experience_required": job.experience_required,
-        "employment_type": job.employment_type,
-        "similarity_score": semantic_score,
-    }
-
-
-# ---------------------------------------------------------
-# 2. Create tools for the recruitment agent
-# ---------------------------------------------------------
+# =========================================================
+# 6. CREATE LANGCHAIN TOOLS
+# =========================================================
 
 def create_agent_tools(db: Session, candidate_id: int):
-    """
-    Create LangChain tools for a particular candidate.
-
-    Available tools:
-        1. get_candidate_profile
-        2. search_jobs
-        3. explain_job_match
-    """
-
-    # -----------------------------------------------------
-    # Load candidate from SQLite
-    # -----------------------------------------------------
 
     candidate = (
         db.query(Candidate)
@@ -202,7 +438,9 @@ def create_agent_tools(db: Session, candidate_id: int):
 
     candidate_skills = parse_json_field(candidate.skills)
 
-    preferred_roles = parse_json_field(candidate.preferred_roles)
+    preferred_roles = parse_json_field(
+        candidate.preferred_roles
+    )
 
     preferred_locations = parse_json_field(
         candidate.preferred_locations
@@ -214,9 +452,11 @@ def create_agent_tools(db: Session, candidate_id: int):
 
     education = parse_json_field(candidate.education)
 
-    education_text = json.dumps(education, ensure_ascii=False)
+    education_text = json.dumps(
+        education,
+        ensure_ascii=False,
+    )
 
-    # Create a consistent query for profile-based retrieval.
     candidate_query = create_candidate_query(
         candidate_skills=candidate_skills,
         education_text=education_text,
@@ -225,17 +465,17 @@ def create_agent_tools(db: Session, candidate_id: int):
         preferred_locations=preferred_locations,
     )
 
-    # -----------------------------------------------------
-    # TOOL 1: Get candidate profile
-    # -----------------------------------------------------
+    # =====================================================
+    # TOOL 1: GET CANDIDATE PROFILE
+    # =====================================================
 
     @tool
     def get_candidate_profile() -> dict:
         """
-        Retrieve the candidate's saved profile from SQLite.
+        Retrieve the candidate's saved profile.
 
-        Use this tool when the user asks about their
-        resume, skills, education, experience, or preferences.
+        Use when the user asks about their skills,
+        education, experience, resume or preferences.
         """
 
         return {
@@ -251,24 +491,24 @@ def create_agent_tools(db: Session, candidate_id: int):
             "resume_filename": candidate.resume_filename,
         }
 
-    # -----------------------------------------------------
-    # TOOL 2: Search and recommend jobs
-    # -----------------------------------------------------
+    # =====================================================
+    # TOOL 2: ADVANCED JOB SEARCH
+    # =====================================================
 
     @tool
     def search_jobs(query: str, top_k: int = 5) -> dict:
         """
-        Search for jobs using the user's query.
+        Search and recommend jobs using semantic retrieval,
+        advanced filters, Cross-Encoder reranking and
+        hybrid candidate matching.
 
-        Uses:
-            1. FAISS semantic retrieval
-            2. Candidate-profile semantic scoring
-            3. Requested-role filtering
-            4. Cross-Encoder reranking
-            5. Hybrid ranking
-
-        Returns the best matching jobs with scores,
-        matched skills, missing skills, and explanations.
+        Supports:
+            - Job role
+            - Location
+            - Remote / Hybrid / Onsite
+            - Minimum and maximum experience
+            - Employment type
+            - Salary range in LPA
         """
 
         try:
@@ -283,7 +523,13 @@ def create_agent_tools(db: Session, candidate_id: int):
             top_k = max(1, min(int(top_k), 20))
 
             # ---------------------------------------------
-            # STEP 1: Retrieve jobs using the user's query
+            # STEP 1: Extract structured filters
+            # ---------------------------------------------
+
+            filters = extract_search_filters(search_query)
+
+            # ---------------------------------------------
+            # STEP 2: FAISS semantic retrieval
             # ---------------------------------------------
 
             retrieved_jobs = search_similar_jobs(
@@ -298,7 +544,7 @@ def create_agent_tools(db: Session, candidate_id: int):
                 }
 
             # ---------------------------------------------
-            # STEP 2: Calculate profile-based semantic scores
+            # STEP 3: Candidate profile semantic scores
             # ---------------------------------------------
 
             profile_similarity_results = search_similar_jobs(
@@ -307,12 +553,14 @@ def create_agent_tools(db: Session, candidate_id: int):
             )
 
             semantic_scores = {
-                item["job_id"]: item.get("similarity_score", 0)
+                item["job_id"]: item.get(
+                    "similarity_score", 0
+                )
                 for item in profile_similarity_results
             }
 
             # ---------------------------------------------
-            # STEP 3: Retrieve complete job records from SQLite
+            # STEP 4: Retrieve complete jobs from SQLite
             # ---------------------------------------------
 
             retrieved_job_ids = [
@@ -331,61 +579,63 @@ def create_agent_tools(db: Session, candidate_id: int):
                 for job in jobs_from_db
             }
 
-            # Preserve the original FAISS retrieval order.
             job_records = []
 
             for item in retrieved_jobs:
-                job_id = item["job_id"]
 
+                job_id = item["job_id"]
                 job = jobs_by_id.get(job_id)
 
                 if not job:
                     continue
 
-                # Use the consistent candidate-profile score.
-                semantic_score = semantic_scores.get(job_id, 0)
-
                 job_record = create_job_record(
                     job=job,
-                    semantic_score=semantic_score,
+                    semantic_score=semantic_scores.get(
+                        job_id, 0
+                    ),
                 )
 
                 job_records.append(job_record)
 
             if not job_records:
                 return {
-                    "message": "Retrieved jobs could not be found in the database.",
+                    "message": "No jobs were found in the database.",
                     "jobs": [],
                 }
 
             # ---------------------------------------------
-            # STEP 4: Filter explicitly requested job roles
+            # STEP 5: Filter requested roles
             # ---------------------------------------------
 
-            filtered_jobs = filter_requested_roles(
+            role_filtered_jobs = filter_requested_roles(
                 jobs=job_records,
                 query=search_query,
+            )
+
+            # ---------------------------------------------
+            # STEP 6: Apply advanced filters
+            # ---------------------------------------------
+
+            filtered_jobs = apply_search_filters(
+                jobs=role_filtered_jobs,
+                filters=filters,
             )
 
             if not filtered_jobs:
                 return {
                     "message": (
-                        "No jobs matching the requested role "
-                        "were found in the available job dataset."
+                        "No jobs matched all your requested "
+                        "role and filter criteria."
                     ),
+                    "search_query": search_query,
+                    "filters_applied": filters,
                     "jobs": [],
                 }
 
             # ---------------------------------------------
-            # STEP 5: Cross-Encoder reranking
+            # STEP 7: Cross-Encoder reranking
             # ---------------------------------------------
-
-            # The Cross-Encoder evaluates the candidate profile
-            # against each retrieved job and selects the most
-            # relevant candidates.
-            #
-            # Keep the Cross-Encoder score separate from the
-            # existing 0-100 semantic score.
 
             cross_encoder_results = rerank_jobs(
                 candidate_query=candidate_query,
@@ -395,25 +645,13 @@ def create_agent_tools(db: Session, candidate_id: int):
 
             if not cross_encoder_results:
                 return {
-                    "message": "No relevant jobs remained after reranking.",
+                    "message": "No jobs remained after reranking.",
                     "jobs": [],
                 }
 
             # ---------------------------------------------
-            # STEP 6: Hybrid ranking
+            # STEP 8: Hybrid ranking
             # ---------------------------------------------
-
-            # Apply the existing hybrid scoring formula:
-            #
-            # Final Score =
-            # 45% Semantic Similarity
-            # 25% Skill Match
-            # 20% Experience Match
-            # 10% Location Match
-            #
-            # Cross-Encoder reranking selects the candidate
-            # pool. Hybrid ranking determines the final order
-            # within that pool.
 
             ranked_jobs = rank_jobs(
                 candidate_skills=candidate_skills,
@@ -424,10 +662,12 @@ def create_agent_tools(db: Session, candidate_id: int):
             )
 
             # ---------------------------------------------
-            # STEP 7: Sort and assign final ranks
+            # STEP 9: Sort final recommendations
             # ---------------------------------------------
 
-            ranked_jobs = sort_and_assign_ranks(ranked_jobs)
+            ranked_jobs = sort_and_assign_ranks(
+                ranked_jobs
+            )
 
             final_results = ranked_jobs[:top_k]
 
@@ -437,15 +677,16 @@ def create_agent_tools(db: Session, candidate_id: int):
                 ),
                 "search_query": search_query,
                 "total_matches": len(ranked_jobs),
+                "filters_applied": filters,
                 "ranking_method": (
-                    "FAISS Retrieval + Cross-Encoder Reranking "
-                    "+ Hybrid Ranking"
+                    "FAISS + Advanced Filtering + "
+                    "Cross-Encoder + Hybrid Ranking"
                 ),
                 "jobs": final_results,
             }
 
         except Exception as error:
-            logger.exception("Error while searching jobs")
+            logger.exception("Advanced job search failed")
 
             return {
                 "message": "An error occurred while searching for jobs.",
@@ -453,31 +694,20 @@ def create_agent_tools(db: Session, candidate_id: int):
                 "jobs": [],
             }
 
-    # -----------------------------------------------------
-    # TOOL 3: Explain an individual job match
-    # -----------------------------------------------------
+    # =====================================================
+    # TOOL 3: EXPLAIN JOB MATCH
+    # =====================================================
 
     @tool
     def explain_job_match(job_id: str) -> dict:
         """
         Explain why a particular job matches the candidate.
 
-        Returns:
-            - Final hybrid match score
-            - Semantic similarity score
-            - Skill match score
-            - Experience compatibility score
-            - Location compatibility score
-            - Matched skills
-            - Missing skills
-            - Explanation
+        Returns hybrid match score, score breakdown,
+        matched skills, missing skills and explanation.
         """
 
         try:
-            # ---------------------------------------------
-            # STEP 1: Find the requested job in SQLite
-            # ---------------------------------------------
-
             job = (
                 db.query(Job)
                 .filter(Job.job_id == job_id)
@@ -486,12 +716,8 @@ def create_agent_tools(db: Session, candidate_id: int):
 
             if not job:
                 return {
-                    "message": f"Job {job_id} was not found.",
+                    "message": f"Job {job_id} was not found."
                 }
-
-            # ---------------------------------------------
-            # STEP 2: Get candidate-profile semantic score
-            # ---------------------------------------------
 
             profile_similarity_results = search_similar_jobs(
                 query=candidate_query,
@@ -499,24 +725,16 @@ def create_agent_tools(db: Session, candidate_id: int):
             )
 
             semantic_scores = {
-                item["job_id"]: item.get("similarity_score", 0)
+                item["job_id"]: item.get(
+                    "similarity_score", 0
+                )
                 for item in profile_similarity_results
             }
 
-            semantic_score = semantic_scores.get(job_id, 0)
-
-            # ---------------------------------------------
-            # STEP 3: Prepare job record
-            # ---------------------------------------------
-
             job_record = create_job_record(
                 job=job,
-                semantic_score=semantic_score,
+                semantic_score=semantic_scores.get(job_id, 0),
             )
-
-            # ---------------------------------------------
-            # STEP 4: Calculate hybrid match score
-            # ---------------------------------------------
 
             ranked_results = rank_jobs(
                 candidate_skills=candidate_skills,
@@ -528,20 +746,18 @@ def create_agent_tools(db: Session, candidate_id: int):
 
             if not ranked_results:
                 return {
-                    "message": "Unable to calculate the job match.",
+                    "message": "Unable to calculate the job match."
                 }
 
             result = ranked_results[0]
-
-            # ---------------------------------------------
-            # STEP 5: Return detailed explanation
-            # ---------------------------------------------
 
             return {
                 "job_id": result.get("job_id"),
                 "title": result.get("title"),
                 "company": result.get("company"),
                 "location": result.get("location"),
+                "salary_min_lpa": result.get("salary_min_lpa"),
+                "salary_max_lpa": result.get("salary_max_lpa"),
                 "match_score": result.get("match_score"),
                 "score_breakdown": result.get("score_breakdown"),
                 "matched_skills": result.get("matched_skills", []),
@@ -550,16 +766,12 @@ def create_agent_tools(db: Session, candidate_id: int):
             }
 
         except Exception as error:
-            logger.exception("Error while explaining job match")
+            logger.exception("Job match explanation failed")
 
             return {
                 "message": "An error occurred while explaining the job match.",
                 "error": str(error),
             }
-
-    # -----------------------------------------------------
-    # Return all available agent tools
-    # -----------------------------------------------------
 
     return [
         get_candidate_profile,

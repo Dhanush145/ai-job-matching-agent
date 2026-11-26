@@ -4,7 +4,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    Float
+    Float,
 )
 
 from .database import Base
@@ -17,17 +17,14 @@ class Candidate(Base):
 
     name = Column(String(150))
     email = Column(String(150), index=True)
-
     phone = Column(String(30))
 
     education = Column(Text)
-
     skills = Column(Text)
 
     experience_years = Column(Float, default=0)
 
     preferred_roles = Column(Text)
-
     preferred_locations = Column(Text)
 
     resume_filename = Column(String(255))
@@ -52,3 +49,7 @@ class Job(Base):
     experience_required = Column(Float, default=0)
 
     employment_type = Column(String(50))
+
+    # Salary fields (in Lakhs Per Annum)
+    salary_min_lpa = Column(Float, nullable=True)
+    salary_max_lpa = Column(Float, nullable=True)
