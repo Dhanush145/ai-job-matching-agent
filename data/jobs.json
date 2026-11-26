@@ -8,7 +8,9 @@
     "description": "Build LLM applications, AI agents and machine learning pipelines.",
     "required_skills": ["Python", "LLM", "LangChain", "FastAPI", "Machine Learning"],
     "experience_required": 1,
-    "employment_type": "Full-time"
+    "employment_type": "Full-time",
+    "salary_min_lpa": 8,
+    "salary_max_lpa": 15
   },
   {
     "job_id": "JOB002",
@@ -18,7 +20,9 @@
     "description": "Develop machine learning models and deploy predictive systems.",
     "required_skills": ["Python", "Machine Learning", "PyTorch", "SQL"],
     "experience_required": 1,
-    "employment_type": "Full-time"
+    "employment_type": "Full-time",
+    "salary_min_lpa": 7,
+    "salary_max_lpa": 14
   },
   {
     "job_id": "JOB003",
@@ -28,7 +32,9 @@
     "description": "Develop NLP, text classification and transformer-based applications.",
     "required_skills": ["Python", "NLP", "Transformers", "PyTorch"],
     "experience_required": 2,
-    "employment_type": "Full-time"
+    "employment_type": "Full-time",
+    "salary_min_lpa": 8,
+    "salary_max_lpa": 16
   },
   {
     "job_id": "JOB004",
@@ -38,7 +44,9 @@
     "description": "Build scalable backend services and REST APIs.",
     "required_skills": ["Python", "FastAPI", "PostgreSQL", "Docker"],
     "experience_required": 1,
-    "employment_type": "Full-time"
+    "employment_type": "Full-time",
+    "salary_min_lpa": 6,
+    "salary_max_lpa": 12
   },
   {
     "job_id": "JOB005",
@@ -48,7 +56,9 @@
     "description": "Analyze business datasets and develop predictive models.",
     "required_skills": ["Python", "SQL", "Statistics", "Machine Learning"],
     "experience_required": 2,
-    "employment_type": "Full-time"
+    "employment_type": "Full-time",
+    "salary_min_lpa": 7,
+    "salary_max_lpa": 13
   },
   {
     "job_id": "JOB006",
@@ -58,7 +68,9 @@
     "description": "Build RAG systems, LLM agents and vector search applications.",
     "required_skills": ["Python", "LangGraph", "FAISS", "Ollama", "RAG"],
     "experience_required": 1,
-    "employment_type": "Full-time"
+    "employment_type": "Full-time",
+    "salary_min_lpa": 10,
+    "salary_max_lpa": 18
   },
   {
     "job_id": "JOB007",
@@ -68,7 +80,9 @@
     "description": "Analyze datasets and create dashboards and business reports.",
     "required_skills": ["Python", "SQL", "Power BI", "Excel"],
     "experience_required": 0,
-    "employment_type": "Full-time"
+    "employment_type": "Full-time",
+    "salary_min_lpa": 5,
+    "salary_max_lpa": 9
   },
   {
     "job_id": "JOB008",
@@ -78,6 +92,8 @@
     "description": "Develop Python applications, APIs and backend integrations.",
     "required_skills": ["Python", "Django", "REST API", "Git"],
     "experience_required": 1,
-    "employment_type": "Full-time"
+    "employment_type": "Full-time",
+    "salary_min_lpa": 5,
+    "salary_max_lpa": 10
   }
 ]
