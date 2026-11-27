@@ -1,0 +1,33 @@
+
+[
+    {
+        "case_id": "agent_1",
+        "prompt": "Show my saved profile",
+        "expected_tool": "get_candidate_profile",
+        "observed_tool": "get_candidate_profile"
+    },
+    {
+        "case_id": "agent_2",
+        "prompt": "Find remote LLM engineer jobs",
+        "expected_tool": "search_jobs",
+        "observed_tool": "search_jobs"
+    },
+    {
+        "case_id": "agent_3",
+        "prompt": "Why am I a match for JOB001? Explain my matched skills, missing skills and match score.",
+        "expected_tool": "explain_job_match",
+        "observed_tool": "explain_job_match"
+    },
+    {
+        "case_id": "agent_4",
+        "prompt": "Analyze my profile and identify the technical skills I am missing for the available jobs.",
+        "expected_tool": "analyze_candidate_skill_gaps",
+        "observed_tool": "analyze_candidate_skill_gaps"
+    },
+    {
+        "case_id": "agent_5",
+        "prompt": "Generate a personalized 6-week learning roadmap based on my skill gaps, including weekly topics, practical projects and milestones.",
+        "expected_tool": "generate_learning_roadmap",
+        "observed_tool": "generate_learning_roadmap"
+    }
+]

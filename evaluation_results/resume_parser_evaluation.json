@@ -1,0 +1,19 @@
+{
+    "module": "10.3 resume extraction",
+    "evaluated_resumes": 1,
+    "field_accuracy": 1.0,
+    "details": [
+        {
+            "case_id": "resume_case_1",
+            "field_checks": {
+                "name": true,
+                "email": true,
+                "phone": true,
+                "skills": true,
+                "experience_years": true,
+                "education": true
+            }
+        }
+    ],
+    "note": "Field-level exact/normalized comparison. Manually review list ordering and semantically equivalent values."
+}

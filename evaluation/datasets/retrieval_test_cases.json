@@ -1,0 +1,17 @@
+[
+    {
+        "query": "Find AI Engineer jobs requiring Python and machine learning",
+        "relevant_job_ids": ["JOB001", "JOB002"],
+        "notes": "AI Engineer and Machine Learning Engineer roles."
+    },
+    {
+        "query": "Find LLM Engineer jobs involving LangChain, RAG and vector databases",
+        "relevant_job_ids": ["JOB006", "JOB001"],
+        "notes": "LLM Engineer and AI Engineer roles."
+    },
+    {
+        "query": "Find Data Scientist jobs involving statistics and data analysis",
+        "relevant_job_ids": ["JOB005"],
+        "notes": "Data Scientist role requiring Statistics and Python."
+    }
+]

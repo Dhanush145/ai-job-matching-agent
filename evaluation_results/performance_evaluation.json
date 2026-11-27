@@ -1,0 +1,31 @@
+{
+    "module": "10.6 retrieval performance",
+    "iterations_per_query": 5,
+    "results": [
+        {
+            "query": "AI Engineer Python machine learning",
+            "iterations": 5,
+            "mean_latency_ms": 6.25,
+            "min_latency_ms": 5.27,
+            "max_latency_ms": 7.41,
+            "p95_latency_ms": 7.41
+        },
+        {
+            "query": "LLM Engineer RAG LangChain",
+            "iterations": 5,
+            "mean_latency_ms": 6.65,
+            "min_latency_ms": 6.11,
+            "max_latency_ms": 7.41,
+            "p95_latency_ms": 7.41
+        },
+        {
+            "query": "Data Scientist statistics",
+            "iterations": 5,
+            "mean_latency_ms": 5.62,
+            "min_latency_ms": 5.07,
+            "max_latency_ms": 6.15,
+            "p95_latency_ms": 6.15
+        }
+    ],
+    "note": "Measures local FAISS retrieval call latency only, not full HTTP/agent/LLM response latency."
+}

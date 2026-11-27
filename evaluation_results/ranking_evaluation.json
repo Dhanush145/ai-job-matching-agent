@@ -1,0 +1,20 @@
+{
+    "module": "10.2 hybrid ranking",
+    "evaluated_cases": 1,
+    "mean_ndcg_at_k": 0.9555,
+    "mean_mrr": 1.0,
+    "results": [
+        {
+            "case_id": "ranking_case_1",
+            "ranked_job_ids": [
+                "JOB001",
+                "JOB002",
+                "JOB006",
+                "JOB004",
+                "JOB007"
+            ],
+            "ndcg_at_k": 0.9555,
+            "mrr": 1.0
+        }
+    ]
+}

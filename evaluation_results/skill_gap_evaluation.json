@@ -1,0 +1,20 @@
+{
+    "module": "10.4 skill-gap analysis",
+    "evaluated_cases": 1,
+    "mean_missing_skill_jaccard": 1.0,
+    "results": [
+        {
+            "case_id": "skill_gap_case_1",
+            "expected_missing_skills": [
+                "docker",
+                "pytorch"
+            ],
+            "actual_missing_skills": [
+                "docker",
+                "pytorch"
+            ],
+            "missing_skill_jaccard": 1.0,
+            "jobs_analyzed": 2
+        }
+    ]
+}

@@ -1,0 +1,21 @@
+[
+    {
+        "case_id": "resume_case_1",
+        "expected": {
+            "name": "Ramesh",
+            "email": "ramesh@example.com",
+            "phone": "9876543210",
+            "skills": ["Python", "FastAPI"],
+            "experience_years": 1,
+            "education": []
+        },
+        "predicted": {
+            "name": "Ramesh",
+            "email": "ramesh@example.com",
+            "phone": "9876543210",
+            "skills": ["Python", "FastAPI"],
+            "experience_years": 1,
+            "education": []
+        }
+    }
+]

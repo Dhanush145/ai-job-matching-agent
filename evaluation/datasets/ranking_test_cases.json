@@ -1,0 +1,145 @@
+[
+    {
+        "case_id": "ranking_case_1",
+        "candidate_skills": [
+            "Python",
+            "FastAPI",
+            "PyTorch",
+            "Machine Learning",
+            "LLM",
+            "LangChain",
+            "LangGraph",
+            "FAISS",
+            "Ollama",
+            "RAG",
+            "NLP",
+            "Transformers",
+            "SQL",
+            "Docker",
+            "REST API"
+        ],
+        "candidate_experience": 1.0,
+        "candidate_locations": [
+            "Bengaluru"
+        ],
+        "top_k": 5,
+        "jobs": [
+            {
+                "job_id": "JOB001",
+                "title": "AI Engineer",
+                "location": "Bengaluru",
+                "required_skills": [
+                    "Python",
+                    "LLM",
+                    "LangChain",
+                    "FastAPI",
+                    "Machine Learning"
+                ],
+                "experience_required": 1,
+                "similarity_score": 75
+            },
+            {
+                "job_id": "JOB002",
+                "title": "Machine Learning Engineer",
+                "location": "Bengaluru",
+                "required_skills": [
+                    "Python",
+                    "Machine Learning",
+                    "PyTorch",
+                    "SQL"
+                ],
+                "experience_required": 1,
+                "similarity_score": 75
+            },
+            {
+                "job_id": "JOB003",
+                "title": "NLP Engineer",
+                "location": "Hyderabad",
+                "required_skills": [
+                    "Python",
+                    "NLP",
+                    "Transformers",
+                    "PyTorch"
+                ],
+                "experience_required": 2,
+                "similarity_score": 75
+            },
+            {
+                "job_id": "JOB004",
+                "title": "Backend Developer",
+                "location": "Bengaluru",
+                "required_skills": [
+                    "Python",
+                    "FastAPI",
+                    "PostgreSQL",
+                    "Docker"
+                ],
+                "experience_required": 1,
+                "similarity_score": 75
+            },
+            {
+                "job_id": "JOB005",
+                "title": "Data Scientist",
+                "location": "Pune",
+                "required_skills": [
+                    "Python",
+                    "SQL",
+                    "Statistics",
+                    "Machine Learning"
+                ],
+                "experience_required": 2,
+                "similarity_score": 75
+            },
+            {
+                "job_id": "JOB006",
+                "title": "LLM Engineer",
+                "location": "Remote",
+                "required_skills": [
+                    "Python",
+                    "LangGraph",
+                    "FAISS",
+                    "Ollama",
+                    "RAG"
+                ],
+                "experience_required": 1,
+                "similarity_score": 75
+            },
+            {
+                "job_id": "JOB007",
+                "title": "Data Analyst",
+                "location": "Bengaluru",
+                "required_skills": [
+                    "Python",
+                    "SQL",
+                    "Power BI",
+                    "Excel"
+                ],
+                "experience_required": 0,
+                "similarity_score": 75
+            },
+            {
+                "job_id": "JOB008",
+                "title": "Python Developer",
+                "location": "Chennai",
+                "required_skills": [
+                    "Python",
+                    "Django",
+                    "REST API",
+                    "Git"
+                ],
+                "experience_required": 1,
+                "similarity_score": 75
+            }
+        ],
+        "relevance_grades": {
+            "JOB001": 3,
+            "JOB002": 3,
+            "JOB006": 3,
+            "JOB004": 2,
+            "JOB003": 2,
+            "JOB005": 1,
+            "JOB007": 1,
+            "JOB008": 1
+        }
+    }
+]

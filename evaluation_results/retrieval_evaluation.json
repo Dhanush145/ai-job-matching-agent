@@ -1,0 +1,53 @@
+{
+    "module": "10.1 retrieval",
+    "k": 5,
+    "evaluated_cases": 3,
+    "skipped_cases": 0,
+    "metrics": {
+        "mean_precision_at_5": 0.3333,
+        "mean_recall_at_5": 1.0,
+        "mrr": 1.0
+    },
+    "results": [
+        {
+            "query": "Find AI Engineer jobs requiring Python and machine learning",
+            "retrieved_job_ids": [
+                "JOB001",
+                "JOB002",
+                "JOB008",
+                "JOB005",
+                "JOB003"
+            ],
+            "precision_at_5": 0.4,
+            "recall_at_5": 1.0,
+            "reciprocal_rank": 1.0
+        },
+        {
+            "query": "Find LLM Engineer jobs involving LangChain, RAG and vector databases",
+            "retrieved_job_ids": [
+                "JOB006",
+                "JOB001",
+                "JOB002",
+                "JOB003",
+                "JOB008"
+            ],
+            "precision_at_5": 0.4,
+            "recall_at_5": 1.0,
+            "reciprocal_rank": 1.0
+        },
+        {
+            "query": "Find Data Scientist jobs involving statistics and data analysis",
+            "retrieved_job_ids": [
+                "JOB005",
+                "JOB007",
+                "JOB002",
+                "JOB004",
+                "JOB008"
+            ],
+            "precision_at_5": 0.2,
+            "recall_at_5": 1.0,
+            "reciprocal_rank": 1.0
+        }
+    ],
+    "skipped": []
+}

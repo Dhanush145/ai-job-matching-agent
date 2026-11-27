@@ -1,0 +1,39 @@
+{
+    "module": "10.5 agent tool selection",
+    "evaluated_cases": 5,
+    "tool_selection_accuracy": 1.0,
+    "correct": 5,
+    "incorrect": 0,
+    "results": [
+        {
+            "case_id": "agent_1",
+            "expected_tool": "get_candidate_profile",
+            "observed_tool": "get_candidate_profile",
+            "correct": true
+        },
+        {
+            "case_id": "agent_2",
+            "expected_tool": "search_jobs",
+            "observed_tool": "search_jobs",
+            "correct": true
+        },
+        {
+            "case_id": "agent_3",
+            "expected_tool": "explain_job_match",
+            "observed_tool": "explain_job_match",
+            "correct": true
+        },
+        {
+            "case_id": "agent_4",
+            "expected_tool": "analyze_candidate_skill_gaps",
+            "observed_tool": "analyze_candidate_skill_gaps",
+            "correct": true
+        },
+        {
+            "case_id": "agent_5",
+            "expected_tool": "generate_learning_roadmap",
+            "observed_tool": "generate_learning_roadmap",
+            "correct": true
+        }
+    ]
+}

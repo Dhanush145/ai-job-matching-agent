@@ -1,0 +1,32 @@
+[
+    {
+        "case_id": "skill_gap_case_1",
+        "candidate_skills": [
+            "Python",
+            "FastAPI"
+        ],
+        "jobs": [
+            {
+                "job_id": "JOB001",
+                "title": "AI Engineer",
+                "required_skills": [
+                    "Python",
+                    "PyTorch"
+                ]
+            },
+            {
+                "job_id": "JOB002",
+                "title": "ML Engineer",
+                "required_skills": [
+                    "Python",
+                    "PyTorch",
+                    "Docker"
+                ]
+            }
+        ],
+        "expected_missing_skills": [
+            "PyTorch",
+            "Docker"
+        ]
+    }
+]
