@@ -8,6 +8,16 @@ from pydantic import (
 )
 
 
+INVALID_PLACEHOLDERS = {
+    "string",
+    "none",
+    "null",
+    "n/a",
+    "unknown",
+    "undefined",
+}
+
+
 class JobCreate(BaseModel):
     job_id: str
     title: str
@@ -36,7 +46,41 @@ class JobCreate(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_salary_range(self):
+    def validate_job_data(self):
+
+        # Validate required text fields
+        required_fields = {
+            "job_id": self.job_id,
+            "title": self.title,
+            "company": self.company,
+            "location": self.location,
+            "description": self.description,
+        }
+
+        for field_name, value in required_fields.items():
+            if not value.strip():
+                raise ValueError(
+                    f"{field_name} cannot be empty."
+                )
+
+            if value.strip().lower() in INVALID_PLACEHOLDERS:
+                raise ValueError(
+                    f"{field_name} cannot contain placeholder values."
+                )
+
+        # Validate required skills
+        for skill in self.required_skills:
+            if not skill.strip():
+                raise ValueError(
+                    "Required skills cannot contain empty values."
+                )
+
+            if skill.strip().lower() in INVALID_PLACEHOLDERS:
+                raise ValueError(
+                    f"Invalid placeholder skill: {skill}"
+                )
+
+        # Validate salary range
         if (
             self.salary_min_lpa is not None
             and self.salary_max_lpa is not None
