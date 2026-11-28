@@ -200,19 +200,57 @@ export default function Dashboard() {
   const [recommendationsError, setRecommendationsError] = useState("");
 
   const fetchRecommendations = async (id: number = candidateId) => {
+    // FastAPI validates this path parameter as an integer. Guard against
+    // undefined, NaN, zero, or accidentally stored non-numeric values.
+    if (!Number.isInteger(id) || id <= 0) {
+      setRecommendationData(null);
+      setRecommendationsError(`Invalid candidate ID: ${String(id)}. Upload a resume or select a valid candidate ID.`);
+      setRecommendationsLoading(false);
+      return;
+    }
+
     try {
       setRecommendationsLoading(true);
       setRecommendationsError("");
 
       const response = await api.get<RecommendationResponse>(
-        `/api/recommendations/${id}`
+        `/api/recommendations/${encodeURIComponent(String(id))}`
       );
 
+      // Keep the displayed candidate in sync with the API response.
+      if (response.data.candidate_id !== id) {
+        console.warn(
+          `Requested recommendations for candidate ${id}, but API returned candidate ${response.data.candidate_id}.`
+        );
+      }
+
       setRecommendationData(response.data);
-    } catch (err) {
-      console.error("Error fetching recommendations:", err);
+    } catch (err: unknown) {
+      const apiError = err as {
+        message?: string;
+        response?: {
+          status?: number;
+          data?: { detail?: unknown; message?: string };
+        };
+      };
+      const status = apiError.response?.status;
+      const detail = apiError.response?.data?.detail;
+      const detailText = detail
+        ? typeof detail === "string"
+          ? detail
+          : JSON.stringify(detail)
+        : apiError.response?.data?.message || apiError.message || "Unknown error";
+
+      console.error("Error fetching recommendations:", {
+        candidateId: id,
+        status,
+        response: apiError.response?.data,
+        message: apiError.message,
+      });
+
+      setRecommendationData(null);
       setRecommendationsError(
-        "Unable to load personalized recommendations. Check the recommendations API and candidate ID."
+        `Could not load recommendations for candidate ${id}${status ? ` (HTTP ${status})` : ""}. ${detailText}`
       );
     } finally {
       setRecommendationsLoading(false);
@@ -279,13 +317,14 @@ export default function Dashboard() {
   useEffect(() => {
     fetchJobs();
     const storedCandidateId = localStorage.getItem("jobpilot_candidate_id");
-    const initialCandidateId = storedCandidateId ? Number(storedCandidateId) : 1;
-    if (Number.isInteger(initialCandidateId) && initialCandidateId > 0) {
-      setCandidateId(initialCandidateId);
-      void fetchRecommendations(initialCandidateId);
-    } else {
-      void fetchRecommendations(1);
-    }
+    const parsedCandidateId = storedCandidateId ? Number(storedCandidateId) : 1;
+    const initialCandidateId =
+      Number.isInteger(parsedCandidateId) && parsedCandidateId > 0
+        ? parsedCandidateId
+        : 1;
+
+    setCandidateId(initialCandidateId);
+    void fetchRecommendations(initialCandidateId);
   }, []);
 
   const locations = useMemo(() => {
@@ -539,45 +578,108 @@ export default function Dashboard() {
 
           </section>
 
-          {/* Resume upload and extracted profile */}
+          {/* Resume upload and candidate profile */}
           <section className="space-y-5" id="resume-upload">
             <div>
               <p className="text-sm font-medium text-blue-600">CANDIDATE PROFILE</p>
-              <h2 className="mt-1 text-xl font-bold">Upload Your Resume</h2>
-              <p className="mt-1 text-sm text-gray-500">Upload a PDF to extract your profile and generate recommendations for the newly created candidate.</p>
+              <h2 className="mt-1 text-xl font-bold">Resume & Profile</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Upload a PDF resume to extract candidate details and refresh personalized job recommendations.
+              </p>
             </div>
+
             <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <label className="flex min-h-12 flex-1 cursor-pointer items-center gap-3 rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-3 hover:border-blue-400 hover:bg-blue-50/50">
                   <UploadCloud className="shrink-0 text-blue-600" size={22} />
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold text-gray-800">{resumeFile ? resumeFile.name : "Choose your resume (PDF)"}</span>
+                    <span className="block truncate text-sm font-semibold text-gray-800">
+                      {resumeFile ? resumeFile.name : "Choose your resume (PDF)"}
+                    </span>
                     <span className="block text-xs text-gray-500">PDF format</span>
                   </span>
-                  <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={(event) => { setResumeFile(event.target.files?.[0] ?? null); setResumeError(""); }} />
+                  <input
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    className="hidden"
+                    onChange={(event) => {
+                      setResumeFile(event.target.files?.[0] ?? null);
+                      setResumeError("");
+                    }}
+                  />
                 </label>
-                <button type="button" onClick={() => void handleResumeUpload()} disabled={!resumeFile || resumeUploading} className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                <button
+                  type="button"
+                  onClick={() => void handleResumeUpload()}
+                  disabled={!resumeFile || resumeUploading}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
                   {resumeUploading ? <RefreshCw size={17} className="animate-spin" /> : <UploadCloud size={17} />}
-                  {resumeUploading ? "Processing..." : "Upload & Analyze"}
+                  {resumeUploading ? "Processing resume..." : "Upload & Analyze"}
                 </button>
               </div>
               {resumeError && <p className="mt-3 text-sm text-red-600">{resumeError}</p>}
-              {resumeResult && (
-                <div className="mt-5 rounded-xl border border-green-200 bg-green-50 p-4">
-                  <div className="flex items-center gap-2 font-semibold text-green-800"><CheckCircle2 size={18} /> {resumeResult.message}</div>
-                  <p className="mt-1 text-sm text-green-800">Candidate ID: {resumeResult.candidate_id} · {resumeResult.profile.name}</p>
-                  <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-                    <div><span className="text-gray-500">Email</span><p className="font-medium text-gray-800">{resumeResult.profile.email || "Not extracted"}</p></div>
-                    <div><span className="text-gray-500">Experience</span><p className="font-medium text-gray-800">{resumeResult.profile.experience_years} years</p></div>
-                    <div><span className="text-gray-500">Education</span><p className="font-medium text-gray-800">{resumeResult.profile.education?.[0]?.degree || "Not extracted"}</p></div>
-                    <div><span className="text-gray-500">Skills extracted</span><p className="font-medium text-gray-800">{resumeResult.profile.skills.length}</p></div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">{resumeResult.profile.skills.map((skill) => <span key={skill} className="rounded-lg bg-white px-2.5 py-1 text-xs font-medium text-gray-700">{skill}</span>)}</div>
-                  <p className="mt-3 text-xs text-green-700">Recommendations below have been refreshed for candidate #{resumeResult.candidate_id}.</p>
-                </div>
-              )}
-              <p className="mt-3 text-xs text-gray-500">Current active candidate ID: {candidateId}</p>
             </div>
+
+            {resumeResult && (
+              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <div className="flex flex-col gap-3 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-semibold text-green-700">
+                      <CheckCircle2 size={18} /> {resumeResult.message}
+                    </div>
+                    <h3 className="mt-2 text-xl font-bold text-gray-900">{resumeResult.profile.name || "Candidate profile"}</h3>
+                    <p className="mt-1 text-sm text-gray-600">Candidate ID: {resumeResult.candidate_id}</p>
+                  </div>
+                  <div className="rounded-xl bg-white px-4 py-3 text-center shadow-sm">
+                    <p className="text-2xl font-bold text-blue-700">{resumeResult.profile.skills.length}</p>
+                    <p className="text-xs text-gray-500">Skills extracted</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-5 p-5 md:grid-cols-2">
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-gray-900">Contact & Career Details</h4>
+                    <div className="grid gap-3 text-sm sm:grid-cols-2">
+                      <div><p className="text-xs text-gray-500">Email</p><p className="mt-1 break-all font-medium text-gray-800">{resumeResult.profile.email || "Not extracted"}</p></div>
+                      <div><p className="text-xs text-gray-500">Phone</p><p className="mt-1 font-medium text-gray-800">{resumeResult.profile.phone || "Not extracted"}</p></div>
+                      <div><p className="text-xs text-gray-500">Experience</p><p className="mt-1 font-medium text-gray-800">{resumeResult.profile.experience_years} years</p></div>
+                      <div><p className="text-xs text-gray-500">Preferred roles</p><p className="mt-1 font-medium text-gray-800">{resumeResult.profile.preferred_roles?.join(", ") || "Not specified"}</p></div>
+                      <div className="sm:col-span-2"><p className="text-xs text-gray-500">Preferred locations</p><p className="mt-1 font-medium text-gray-800">{resumeResult.profile.preferred_locations?.join(", ") || "Not specified"}</p></div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-gray-900">Education</h4>
+                    {resumeResult.profile.education?.length ? (
+                      resumeResult.profile.education.map((education, index) => (
+                        <div key={`${education.institution}-${index}`} className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm">
+                          <p className="font-semibold text-gray-900">{education.degree || "Degree not specified"}</p>
+                          <p className="mt-1 text-gray-600">{education.institution || "Institution not specified"}</p>
+                          <p className="mt-1 text-xs text-gray-500">{education.field_of_study || ""}{education.graduation_year ? ` · Graduation ${education.graduation_year}` : ""}{education.cgpa ? ` · CGPA ${education.cgpa}` : ""}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500">No education details were extracted.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-100 p-5">
+                  <h4 className="mb-3 font-semibold text-gray-900">Extracted Skills</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {resumeResult.profile.skills.map((skill) => (
+                      <span key={skill} className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">{skill}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="border-t border-gray-100 bg-green-50/60 px-5 py-3 text-xs text-green-800">
+                  Recommendations have been refreshed for candidate #{resumeResult.candidate_id}.
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-gray-500">Current active candidate ID: {candidateId}. Uploading another resume creates/activates the candidate returned by the backend.</p>
           </section>
 
           {/* Personalized recommendations */}
@@ -651,7 +753,7 @@ export default function Dashboard() {
                 <p className="font-semibold text-red-700">
                   Recommendations unavailable
                 </p>
-                <p className="mt-1 text-sm text-red-600">
+                <p className="mt-1 break-words text-sm text-red-600">
                   {recommendationsError}
                 </p>
                 <button
