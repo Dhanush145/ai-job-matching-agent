@@ -23,6 +23,7 @@ import {
   Clock,
   GraduationCap,
   X,
+  Send,
 } from "lucide-react";
 
 import api from "@/lib/api";
@@ -84,6 +85,18 @@ type RecommendationResponse = {
   recommendations: JobRecommendation[];
 };
 
+type AgentChatResponse = {
+  candidate_id: number;
+  conversation_id: string;
+  user_message: string;
+  assistant_response: string;
+};
+
+type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 export default function Dashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,6 +104,73 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("All Locations");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // AI recruitment agent chat
+  const [chatInput, setChatInput] = useState("");
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState("");
+  const [conversationId, setConversationId] = useState("dashboard-test");
+  const [chatHydrated, setChatHydrated] = useState(false);
+  const candidateId = 1;
+
+  // Restore the chat transcript and conversation ID after a page reload.
+  useEffect(() => {
+    try {
+      const savedConversationId = localStorage.getItem("jobpilot_conversation_id");
+      const savedMessages = localStorage.getItem("jobpilot_chat_messages");
+
+      if (savedConversationId) setConversationId(savedConversationId);
+      if (savedMessages) {
+        const parsedMessages = JSON.parse(savedMessages) as ChatMessage[];
+        if (Array.isArray(parsedMessages)) setChatMessages(parsedMessages);
+      }
+    } catch (storageError) {
+      console.error("Could not restore saved chat:", storageError);
+    } finally {
+      setChatHydrated(true);
+    }
+  }, []);
+
+  // Save chat messages locally so the visible transcript survives reloads.
+  useEffect(() => {
+    if (!chatHydrated) return;
+
+    try {
+      localStorage.setItem("jobpilot_conversation_id", conversationId);
+      localStorage.setItem("jobpilot_chat_messages", JSON.stringify(chatMessages));
+    } catch (storageError) {
+      console.error("Could not save chat:", storageError);
+    }
+  }, [chatMessages, conversationId, chatHydrated]);
+
+  const sendChatMessage = async () => {
+    const message = chatInput.trim();
+    if (!message || chatLoading) return;
+
+    setChatMessages((previous) => [...previous, { role: "user", content: message }]);
+    setChatInput("");
+    setChatLoading(true);
+    setChatError("");
+
+    try {
+      const response = await api.post<AgentChatResponse>("/api/agent/chat", {
+        candidate_id: candidateId,
+        conversation_id: conversationId,
+        message,
+      });
+
+      setChatMessages((previous) => [
+        ...previous,
+        { role: "assistant", content: response.data.assistant_response },
+      ]);
+    } catch (err) {
+      console.error("AI agent chat failed:", err);
+      setChatError("Unable to get a response from the AI agent. Check that the backend and Ollama are running.");
+    } finally {
+      setChatLoading(false);
+    }
+  };
 
   // Personalized recommendation state (candidate ID 1)
   const [recommendationData, setRecommendationData] =
@@ -500,6 +580,86 @@ export default function Dashboard() {
                   No personalized recommendations are available yet.
                 </div>
               )}
+          </section>
+
+          {/* AI recruitment assistant */}
+          <section className="space-y-5" id="ai-assistant">
+            <div>
+              <p className="text-sm font-medium text-blue-600">LANGGRAPH POWERED</p>
+              <h2 className="mt-1 text-xl font-bold">AI Career Assistant</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Ask your recruitment agent to find jobs, explain matches, or explore career opportunities.
+              </p>
+            </div>
+
+            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+              <div className="flex items-center gap-3 border-b border-gray-100 bg-gray-50 px-5 py-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
+                  <Bot size={21} />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">JobPilot AI Agent</p>
+                  <p className="text-xs text-gray-500">Candidate #{candidateId} · Conversation: {conversationId}</p>
+                </div>
+                <span className="ml-auto rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Connected UI</span>
+              </div>
+
+              <div className="max-h-[460px] min-h-[180px] space-y-4 overflow-y-auto p-5">
+                {chatMessages.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
+                    <Sparkles className="mx-auto text-blue-600" size={25} />
+                    <p className="mt-3 font-semibold text-gray-800">How can I help with your job search?</p>
+                    <p className="mt-1 text-sm text-gray-500">Try: “Find the best AI and LLM engineering jobs for my profile.”</p>
+                    <button
+                      type="button"
+                      onClick={() => setChatInput("Find the best AI and LLM engineering jobs for my profile")}
+                      className="mt-4 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50"
+                    >
+                      Use example question
+                    </button>
+                  </div>
+                )}
+
+                {chatMessages.map((message, index) => (
+                  <div key={`${message.role}-${index}`} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[90%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed ${message.role === "user" ? "bg-blue-600 text-white" : "border border-gray-200 bg-gray-50 text-gray-800"}`}>
+                      {message.content}
+                    </div>
+                  </div>
+                ))}
+
+                {chatLoading && (
+                  <div className="flex justify-start">
+                    <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+                      AI agent is thinking...
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {chatError && <p className="px-5 pb-2 text-sm text-red-600">{chatError}</p>}
+
+              <form
+                className="flex gap-2 border-t border-gray-100 p-4"
+                onSubmit={(event) => { event.preventDefault(); void sendChatMessage(); }}
+              >
+                <input
+                  value={chatInput}
+                  onChange={(event) => setChatInput(event.target.value)}
+                  placeholder="Ask your AI career assistant..."
+                  className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  disabled={chatLoading}
+                />
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim() || chatLoading}
+                  className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Send size={16} />
+                  <span className="hidden sm:inline">Send</span>
+                </button>
+              </form>
+            </div>
           </section>
 
           {/* Job listings */}
