@@ -1,18 +1,16 @@
-
 import axios from "axios";
 
-// Backend API configuration
+// FastAPI backend client
 const api = axios.create({
-  baseURL: "http://127.0.0.1:8000",
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000",
   headers: {
     "Content-Type": "application/json",
   },
 });
 
 // --------------------------------------
-// JOB INTERFACE
+// JOB TYPES
 // --------------------------------------
-
 export interface Job {
   id: number;
   job_id: string;
@@ -28,9 +26,52 @@ export interface Job {
 }
 
 // --------------------------------------
-// RECOMMENDATION INTERFACES
+// RESUME UPLOAD TYPES
 // --------------------------------------
+export interface EducationEntry {
+  institution: string;
+  degree: string;
+  field_of_study: string;
+  graduation_year: string;
+  cgpa: string;
+}
 
+export interface CandidateProfile {
+  name: string;
+  email: string;
+  phone: string;
+  education: EducationEntry[];
+  skills: string[];
+  experience_years: number;
+  preferred_roles: string[];
+  preferred_locations: string[];
+}
+
+export interface ResumeUploadResponse {
+  message: string;
+  candidate_id: number;
+  profile: CandidateProfile;
+}
+
+/** Upload a PDF resume to POST /api/resume/upload. */
+export const uploadResume = async (
+  file: File
+): Promise<ResumeUploadResponse> => {
+  const formData = new FormData();
+  // Swagger's upload field is expected to be named "file".
+  formData.append("file", file);
+
+  const response = await api.post<ResumeUploadResponse>(
+    "/api/resume/upload",
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+  return response.data;
+};
+
+// --------------------------------------
+// RECOMMENDATION TYPES
+// --------------------------------------
 export interface JobRecommendation {
   job_id: string;
   title: string;
@@ -40,17 +81,14 @@ export interface JobRecommendation {
   required_skills: string[];
   experience_required: number;
   employment_type: string;
-
   similarity_score: number;
   match_score: number;
-
   score_breakdown: {
     semantic_similarity: number;
     skill_matching: number;
     experience_matching: number;
     location_matching: number;
   };
-
   matched_skills: string[];
   missing_skills: string[];
   explanation: string[];
@@ -61,50 +99,23 @@ export interface RecommendationResponse {
   candidate_id: number;
   candidate_name: string;
   ranking_method: string;
-
   ranking_weights: {
     semantic_similarity: number;
     skill_matching: number;
     experience_matching: number;
     location_matching: number;
   };
-
   total_recommendations: number;
   recommendations: JobRecommendation[];
 }
 
-// --------------------------------------
-// API FUNCTIONS
-// --------------------------------------
-
-/**
- * Fetch all jobs from the backend.
- */
-export const getJobs = async (): Promise<Job[]> => {
-  const response = await api.get("/api/jobs/");
-
-  // Supports both a direct array and { jobs: [...] }
-  const data = response.data;
-
-  return Array.isArray(data) ? data : data.jobs ?? [];
-};
-
-/**
- * Fetch personalized job recommendations
- * for a particular candidate.
- */
 export const getRecommendations = async (
   candidateId: number
 ): Promise<RecommendationResponse> => {
-  const response = await api.get(
+  const response = await api.get<RecommendationResponse>(
     `/api/recommendations/${candidateId}`
   );
-
   return response.data;
 };
-
-// --------------------------------------
-// EXPORT AXIOS INSTANCE
-// --------------------------------------
 
 export default api;
